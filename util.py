@@ -68,6 +68,10 @@ class Project:
         with open(nfile, 'wb') as file:
             pickle.dump(object, file=file)
 
+    def load(self, nfile):
+        with open(nfile, 'r') as file:
+            return pickle.load(file)
+
 
 if __name__ == '__main__':
     path = os.getcwd()
