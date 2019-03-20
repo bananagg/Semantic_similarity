@@ -8,7 +8,7 @@ class Project:
 
     def _init_all_path(self):
         self._data_dir = os.path.join(self._root_dir, 'data')
-        self._aux_data_dir = os.path.join(self._data_dir, 'aux')
+        self._aux_data_dir = os.path.join(self._data_dir, 'auxx')
         self._preprocessed_data_dir = os.path.join(self._data_dir,'preprocessed')
         self._feature_dir = os.path.join(self._data_dir, 'feature')
         self._trained_model_dir = os.path.join(self._data_dir, 'model')
