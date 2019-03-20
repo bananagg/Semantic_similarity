@@ -15,23 +15,22 @@ import re
 
 from util import Project
 
-
-train_filename = 'atec_nlp_sim_train.csv'
-train_all_filename = 'atec_nlp_sim_train_add.csv'
-stopwords_filename='stop_words.txt'
-spelling_corrections_filename = 'spelling_corrections.json'
+# train_filename = 'atec_nlp_sim_train.csv'
+# train_all_filename = 'atec_nlp_sim_train_add.csv'
+# stopwords_filename='stop_words.txt'
+# spelling_corrections_filename = 'spelling_corrections.json'
 
 # file paths
 train_data_all = 'atec_nlp_sim_train_all.csv'
 train_all = 'atec_nlp_sim_train_0.6.csv'
-test_all = 'atec_nlp_sim_test_0.4.csv' #6550个为1的label
+test_all = 'atec_nlp_sim_test_0.4.csv'  # 6550个为1的label
 stop_words_path = 'stop_words.txt'
 dict_path = 'dict_all.txt'
 spelling_corrections_path = 'spelling_corrections.json'
 w2v_model_path = 'train_corpus.model'
 w2v_vocab_path = 'train_corpus_vocab.txt'
 
-#param
+# param
 embedding_size = 300
 max_sentence_length = 20
 max_word_length = 25
@@ -40,15 +39,17 @@ max_vovab_size = 100000
 
 project = Project.init(os.getcwd(), create_dir=False)
 
+
 def load_stopwordslist(filepath):
     with open(filepath, 'r', encoding='utf-8') as f:
         stop_words = [line.strip() for line in f]
     return stop_words
 
+
 def load_spelling_corrections(filepath):
     with open(filepath, 'r', encoding='utf-8') as file:
         spelling_corrections = json.load(file)
-    return file
+    return spelling_corrections
 
 
 def transform_other_word(str_txt, reg_dict):
@@ -57,8 +58,7 @@ def transform_other_word(str_txt, reg_dict):
     return str_txt
 
 
-def process_save_embedding_wv(nfile, type = 1, isStore_ids = False):
-
+def process_save_embedding_wv(nfile, type=1, isStore_ids=False):
     """
     :param nfile:
     :param type:  词向量的选择：1，知乎 2，训练集 3，知乎+训练集
@@ -79,17 +79,15 @@ def process_save_embedding_wv(nfile, type = 1, isStore_ids = False):
         filters=''
     )
     #
-    pre_deal_train_df = pd.read_csv(project.data_dir+'',
+    pre_deal_train_df = pd.read_csv(project.data_dir + 'atec_nlp_sim_train_0.6.csv',
                                     names=['index', 's1', 's2', 'label'],
                                     header=None,
-                                    encoding='utf-s',
                                     sep='\t')
 
-    pre_deal_test_df = pd.read_csv(project.data_dir + '',
-                                    names=['index', 's1', 's2', 'label'],
-                                    header=None,
-                                    encoding='utf-s',
-                                    sep='\t')
+    pre_deal_test_df = pd.read_csv(project.data_dir + 'atec_nlp_sim_test_0.4.csv',
+                                   names=['index', 's1', 's2', 'label'],
+                                   header=None,
+                                   sep='\t')
     s1 = 's1'
     s2 = 's2'
     texts = []
@@ -126,6 +124,7 @@ def process_save_embedding_wv(nfile, type = 1, isStore_ids = False):
         w2v_path2 = project.aux_dir + 'train_all_data.bigram'
         w2v_model2 = KeyedVectors.load_word2vec_format(w2v_path2, binary=False)
     count = 0
+    # 根据词组和index 构建词性，方便计算
     for word, index in num_words_dict.items():
         if word in w2v_model.vocab:
             embedding_matrix[index] = w2v_model.word_vec(word)
@@ -152,14 +151,15 @@ def process_save_embedding_wv(nfile, type = 1, isStore_ids = False):
 
         print('finish')
 
-def process_save_char_embedding_wv(isStore_ids = False):
+
+def process_save_char_embedding_wv(isStore_ids=False):
     colow_name = ['index', 's1', 's2', 'lable']
     data_local_df = pd.read_csv(project.data_dir + train_all, sep='\t', header=None, names=colow_name)
     data_test_df = pd.read_csv(project.data_dir + test_all, sep='\t', header=None, names=colow_name)
-    w2v_char_path = project.aux_dir + "train_char_all_data.bigram"
+    w2v_char_path = project.aux_dir + "train_char_all__data.bigram"
     w2v_char_model = KeyedVectors.load_word2vec_format(w2v_char_path, binary=False)
 
-    spelling_corrections = load_spelling_corrections(project.aux_dir + spelling_corrections_filename)
+    spelling_corrections = load_spelling_corrections(project.aux_dir + spelling_corrections_path)
     re_objiect = re.compile('\*+')
     char_vocabs = project.load(project.preprocessed_data_dir + 'train_all_char_vocabs.pickle')
     data_df_list = [data_local_df, data_test_df]
@@ -171,11 +171,12 @@ def process_save_char_embedding_wv(isStore_ids = False):
             embedding_word_matrix[index] = w2v_char_model.word_vec(word)
 
     project.save(project.aux_dir + 'train_all_char_embedding_matrix.pickle', embedding_word_matrix)
-
+    #   将表达中的字符用数字替换
     for data_df in data_df_list:
         for index, row in data_df.iterrows():
             for col_name in ['s1', 's2']:
-                re_str = re_objiect.subn(u'十一', row[0])
+                # print(type(row[0]))
+                re_str = re_objiect.subn(u'十一', row[col_name])
                 spell_corr_str = transform_other_word(re_str[0], spelling_corrections)
                 spell_corr_str = list(spell_corr_str)
                 indexs = []
@@ -187,30 +188,26 @@ def process_save_char_embedding_wv(isStore_ids = False):
                             indexs.append(0)
                 data_df.at[index, col_name] = indexs
     if isStore_ids:
-        s1_train_ids_pad = sequence.pad_sequences(data_local_df['s1'],maxlen=max_word_length)
-        s2_train_ids_pad = sequence.pad_sequences(data_local_df['s2'],maxlen=max_word_length)
+        s1_train_ids_pad = sequence.pad_sequences(data_local_df['s1'], maxlen=max_word_length)
+        s2_train_ids_pad = sequence.pad_sequences(data_local_df['s2'], maxlen=max_word_length)
 
-        s1_test_ids_pad = sequence.pad_sequences(data_test_df['s1'],maxlen=max_word_length)
-        s2_test_ids_pad = sequence.pad_sequences(data_test_df['s2'],maxlen=max_word_length)
+        s1_test_ids_pad = sequence.pad_sequences(data_test_df['s1'], maxlen=max_word_length)
+        s2_test_ids_pad = sequence.pad_sequences(data_test_df['s2'], maxlen=max_word_length)
 
-        project.save(project.preprocessed_data_dir + 's1_train_char_ids_pad.pickle',s1_train_ids_pad)
-        project.save(project.preprocessed_data_dir + 's2_train_char_ids_pad.pickle',s2_train_ids_pad)
-        project.save(project.preprocessed_data_dir + 's1_test_char_ids_pad.pickle',s1_test_ids_pad)
-        project.save(project.preprocessed_data_dir + 's2_test_char_ids_pad.pickle',s2_test_ids_pad)
+        project.save(project.preprocessed_data_dir + 's1_train_char_ids_pad.pickle', s1_train_ids_pad)
+        project.save(project.preprocessed_data_dir + 's2_train_char_ids_pad.pickle', s2_train_ids_pad)
+        project.save(project.preprocessed_data_dir + 's1_test_char_ids_pad.pickle', s1_test_ids_pad)
+        project.save(project.preprocessed_data_dir + 's2_test_char_ids_pad.pickle', s2_test_ids_pad)
     print('finish')
     pass
 
 
 def pre_train_char_w2v(binary=False):
+    data_local_df = pd.read_csv(project.data_dir + train_all, sep='\t', names=['index', 's1', 's2', 'label'])
+    data_local_all_df = pd.read_csv(project.data_dir + test_all, sep='\t', names=['index', 's1', 's2', 'label'])
 
-
-    data_local_df = pd.read_csv(project.data_dir + train_all_filename, sep='\t', names=['index', 's1', 's2', 'label'])
-    data_local_all_df = pd.read_csv(project.data_dir + train_all_filename, sep='\t', names=['index', 's1', 's2', 'label'])
-
-
-
-    stopwords = load_stopwordslist(project.aux_dir + stopwords_filename)
-    spelling_corrections = load_spelling_corrections(project.aux_dir + spelling_corrections_filename)
+    stopwords = load_stopwordslist(project.aux_dir + stop_words_path)
+    spelling_corrections = load_spelling_corrections(project.aux_dir + spelling_corrections_path)
     compile = re.compile(r"\*+")
     data_df_list = [data_local_df, data_local_all_df]
     texts = []
@@ -239,28 +236,29 @@ def pre_train_char_w2v(binary=False):
                         char_index += 1
                 texts.extend(spell_corr_str)
 
-    print(texts)
+    # print(texts)
     model = word2vec.Word2Vec(sentences=texts, size=300, window=3, workers=2)
-    model.wv.save_word2vec_format(fname=project.aux_dir + 'train_char_all__data.bigram', binary= binary, fvocab=None)
-    project.save(project.preprocessed_data_dir, model)
+    model.wv.save_word2vec_format(fname=project.aux_dir + 'train_char_all__data.bigram', binary=binary, fvocab=None)
+    project.save(project.preprocessed_data_dir + 'train_all_char_vocabs.pickle', char_vocabs)
+    print('pre_train_char_w2v finish')
 
-def preprocessing(df, fname):
-    stopwords = load_stopwordslist(project.aux_dir + stopwords_filename)
-    spelling_corrections = load_spelling_corrections(project.aux_dir + spelling_corrections_filename)
+
+def preprocessing(data_df, fname):
+    stopwords = load_stopwordslist(project.aux_dir + stop_words_path)
+    spelling_corrections = load_spelling_corrections(project.aux_dir + spelling_corrections_path)
 
     re_compile = re.compile('\*+')
     vocabs = defaultdict(int)  # 记录词汇表词频
-    for data_df in df:
-        for index, row in data_df.iterrows():
-            if index != 0 and index % 2000 == 0:
-                print("{:,}  {}-sentence embedding.".format(index, fname))
-            for col_name in ['s1', 's2']:
-                re_str = re_compile.subn(u'十一', row[col_name])
-                spelling_corr_str = transform_other_word(re_str[0], spelling_corrections)
-                seg_str = seg_sentence(spelling_corr_str, stopwords)
-                for word in seg_str:
-                    vocabs[word] = vocabs[word] + 1
-                    data_df.at[index, col_name] = seg_str
+    for index, row in data_df.iterrows():
+        if index != 0 and index % 2000 == 0:
+            print("{:,}  {}-sentence embedding.".format(index, fname))
+        for col_name in ['s1', 's2']:
+            re_str = re_compile.subn(u'十一', row[col_name])
+            spelling_corr_str = transform_other_word(re_str[0], spelling_corrections)
+            seg_str = seg_sentence(spelling_corr_str, stopwords)
+            for word in seg_str:
+                vocabs[word] = vocabs[word] + 1
+                data_df.at[index, col_name] = seg_str
     data_df.to_csv(project.preprocessed_data_dir + '{}.csv'.format(fname), sep='\t', header=None, index=None,
                    encoding='utf-8')
     project.save(project.preprocessed_data_dir + '{}.pickle'.format(fname), vocabs)
@@ -276,6 +274,7 @@ def seg_sentence(sentence, stopwords):
                 out_str += word
                 out_str += ' '
     return out_str
+
 
 def pre_train_w2v(binary=False):
     """
@@ -313,24 +312,28 @@ def pre_train_w2v(binary=False):
 
 if __name__ == '__main__':
     # project = Project.init(os.getcwd(), create_dir=False)
+    jieba.load_userdict(project.aux_dir + dict_path)
+
+    col_name = ['index', 's1', 's2', 'label']
     print(project.data_dir)
-    data_local_df = pd.read_csv(project.data_dir + train_all_filename, sep='\t', names=['index', 's1', 's2', 'label'])
+    data_local_df = pd.read_csv(project.data_dir + train_all, sep='\t', names=col_name)
     # print(data_local_df.head(5))
-    data_local_all_df = pd.read_csv(project.data_dir + train_all_filename, sep='\t', names=['index', 's1', 's2', 'label'])
+    data_test_df = pd.read_csv(project.data_dir + test_all, sep='\t', names=col_name)
+    data_all_df = pd.read_csv(project.data_dir + train_data_all, sep='\t', names=col_name)
     # print(data_local_all_df.head())
 
-    pre_train_char_w2v()
+    # pre_train_char_w2v()
     # print(load_stopwordslist(project.aux_dir+stopwords_filename))
 
-    preprocessing(data_local_df, 'train_0.6_seg')
+    # preprocessing(data_local_df, 'train_0.6_seg')
     # preprocessing(data_test_df, 'test_0.4_seg')
     # preprocessing(data_all_df, 'data_all_seg')
+    #
+    # pre_train_w2v()
 
-    pre_train_w2v()
-
-    process_save_embedding_wv('train_all_w2v_embedding_matrix.pickle', type=2, isStore_ids=True)
+    # process_save_embedding_wv('train_all_w2v_embedding_matrix.pickle', type=2, isStore_ids=True)
     # process_save_embedding_wv('zhihu_w2v_embedding_matrix.pickle',type=2,isStore_ids=False)
     # process_save_embedding_wv('zhihu_w2v_embedding_matrix.pickle',type=3,isStore_ids=False)
 
     # step 4 char wordembedding
-    # process_save_char_embedding_wv(isStore_ids=True)
+    process_save_char_embedding_wv(isStore_ids=True)

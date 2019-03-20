@@ -69,7 +69,7 @@ class Project:
             pickle.dump(object, file=file)
 
     def load(self, nfile):
-        with open(nfile, 'r') as file:
+        with open(nfile, 'rb') as file:
             return pickle.load(file)
 
 
