@@ -97,7 +97,7 @@ class Project:
     def save_features(self, train_fea, test_fea, fea_names, feature_name):
         self.save_feature_names(fea_names, feature_name)
         self.save_feature_col_list(train_fea, 'train', feature_name)
-        self.save_feature_col_list(train_fea, 'test', feature_name)
+        self.save_feature_col_list(test_fea, 'test', feature_name)
         pass
 
 
